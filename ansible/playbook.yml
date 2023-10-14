@@ -1,0 +1,47 @@
+---
+- name: Initialize PostgreSQL DB
+  hosts: localhost
+  connection: local
+  vars:
+    postgres_host: "{{ lookup('env', 'INIT_POSTGRES_HOST') }}"
+    postgres_super_user: "{{ lookup('env', 'INIT_POSTGRES_SUPER_USER') }}"
+    postgres_super_user_pass: "{{ lookup('env', 'INIT_POSTGRES_SUPER_USER_PASS') }}"
+    postgres_user: "{{ lookup('env', 'INIT_POSTGRES_USER') }}"
+    postgres_pass: "{{ lookup('env', 'INIT_POSTGRES_PASS') }}"
+    postgres_dbname: "{{ lookup('env', 'INIT_POSTGRES_DBNAME') }}"
+  tasks:
+    - name: Wait for PostgreSQL to become available
+      wait_for:
+        host: "{{ postgres_host }}"
+        port: 5432
+        delay: 10
+        timeout: 300
+
+    - name: Ensure environment variables are set
+      assert:
+        that:
+          - postgres_host is defined 
+          - postgres_super_user is defined
+          - postgres_super_user_pass is defined
+          - postgres_user is defined
+          - postgres_pass is defined
+          - postgres_dbname is defined
+        fail_msg: "One or more required environment variables are not set!"
+      delegate_to: localhost
+
+    - name: Ensure PostgreSQL user exists
+      postgresql_user:
+        name: "{{ postgres_user }}"
+        password: "{{ postgres_pass }}"
+        login_host: "{{ postgres_host }}"
+        login_user: "{{ postgres_super_user }}"
+        login_password: "{{ postgres_super_user_pass }}"
+
+    - name: Ensure PostgreSQL database is present and grant user privileges
+      postgresql_db:
+        name: "{{ postgres_dbname }}"
+        owner: "{{ postgres_user }}"
+        login_host: "{{ postgres_host }}"
+        login_user: "{{ postgres_super_user }}"
+        login_password: "{{ postgres_super_user_pass }}"
+
